@@ -1,0 +1,42 @@
+workflows:
+  build-android:
+    name: Build Android (assembleDebug)
+    max_build_duration: 60
+    instance_type: default
+    environment:
+      flutter: false
+      vars:
+        # اگر خواستی متغیرهای محیطی اضافه کنی اینجا قرار بده
+    scripts:
+      - name: Prepare environment
+        script: |
+          set -e
+          echo "Using JDK 17"
+          sudo update-java-alternatives -s java-1.17.0-openjdk-amd64 || true
+      - name: Accept Android SDK licenses (if needed)
+        script: |
+          set -e
+          if command -v sdkmanager >/dev/null 2>&1; then
+            yes | sdkmanager --licenses || true
+          else
+            echo "sdkmanager not found in PATH; continuing."
+          fi
+      - name: Build (try wrapper, fallback to system gradle)
+        script: |
+          set -e
+          echo "Starting build: trying ./gradlew assembleDebug"
+          if [ -x ./gradlew ]; then
+            ./gradlew assembleDebug --no-daemon
+          else
+            echo "./gradlew not found or not executable. Trying 'gradle assembleDebug' (system gradle)."
+            gradle assembleDebug --no-daemon
+          fi
+    artifacts:
+      - app/build/outputs/**/*.apk
+    cache:
+      - key: gradle-cache-{{ checksum "build.gradle" }}-{{ checksum "app/build.gradle" }}
+        restore_keys:
+          - gradle-cache-
+        paths:
+          - ~/.gradle/caches
+          - ~/.gradle/wrapper
